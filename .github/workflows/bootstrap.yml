@@ -1,0 +1,111 @@
+name: Import and improve T-R-E-X
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/bootstrap.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Import pinned source and apply tested improvements
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth 1 --branch master 'https://github.com/SakshamJain17/trex-running-game.git' "$RUNNER_TEMP/upstream"
+          test "$(git -C "$RUNNER_TEMP/upstream" rev-parse HEAD)" = "d6a39865c4aa328dd13ef08b67161ae3bf566f4c"
+          rsync -a --exclude '.git' --exclude '.github' "$RUNNER_TEMP/upstream/" ./
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("sketch.js")
+          s=p.read_text()
+          def replace_once(a,b):
+              global s
+              if s.count(a)!=1: raise RuntimeError("Expected exactly one occurrence: "+a[:70])
+              s=s.replace(a,b)
+          replace_once('  createCanvas(600, 200);','  createCanvas(600, 200);\n  score = 0;\n  try { bestScore = Number(localStorage.getItem("trex-best-score") || 0); } catch (error) { bestScore = 0; }')
+          replace_once('var score;','var score;\nvar bestScore = 0;')
+          replace_once('ground.velocityX = -(6+3*score/100);','ground.velocityX = -6;')
+          replace_once('  score = score + Math.round(getFrameRate()/60);','  if (frameCount % 3 === 0) score += 1;')
+          replace_once('  if(keyDown("space")&&trex.y>= 159) {','  if((keyDown("space") || keyDown("up")) && trex.y >= 159) {')
+          replace_once('  text("Score: "+ score, 500,50);','  fill(25);\n  textSize(14);\n  text("SCORE " + score, 470, 30);\n  text("BEST " + bestScore, 470, 48);')
+          replace_once('      gameState=END','      gameState=END;\n      if (score > bestScore) {\n        bestScore = score;\n        try { localStorage.setItem("trex-best-score", String(bestScore)); } catch (error) {}\n      }')
+          replace_once('  if(mousePressedOver(restart)) {','  if(mousePressedOver(restart) || keyDown("r") || keyDown("space")) {')
+          replace_once('  score = 0;\n  \n}\nfunction spawnClouds()', '  score = 0;\n  trex.y = 180;\n  trex.velocityY = 0;\n  ground.velocityX = -6;\n}\n\nfunction touchStarted() {\n  if (!trex) return true;\n  if (gameState === END) reset();\n  else if (trex.y >= 159) trex.velocityY = -12;\n  return false;\n}\n\nfunction spawnClouds()')
+          p.write_text(s)
+          Path("index.html").write_text("""<!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="theme-color" content="#f8fafc">
+            <meta name="description" content="A lightweight, browser-based dinosaur runner with a persistent high score.">
+            <title>T-R-E-X | Dino Runner</title>
+            <link rel="stylesheet" href="style.css">
+            <script src="p5.js"></script>
+            <script src="p5.dom.min.js"></script>
+            <script src="p5.sound.min.js"></script>
+            <script src="p5.play.js"></script>
+          </head>
+          <body>
+            <main class="shell">
+              <div class="eyebrow">THE OFFLINE CLASSIC · REMIXED</div>
+              <h1>T-R-E-X<span>.</span></h1>
+              <p class="subtitle">Run. Jump. Beat your best.</p>
+              <div id="game" class="game-frame" aria-label="Dinosaur runner game"></div>
+              <p class="hint">Space / ↑ to jump · R to restart · Tap on mobile</p>
+              <p class="footnote">High score is saved only in your browser.</p>
+            </main>
+            <script src="sketch.js"></script>
+          </body>
+          </html>
+          """)
+          s=p.read_text()
+          s=s.replace('  createCanvas(600, 200);','  var canvas = createCanvas(600, 200);\n  canvas.parent("game");')
+          p.write_text(s)
+          Path("style.css").write_text("""* { box-sizing: border-box; }
+          html,body { margin: 0; min-height: 100%; }
+          body { background:#f8fafc; font-family:ui-monospace,Consolas,monospace; color:#172033; display:grid; place-items:center; padding:28px 14px; }
+          .shell { width:min(100%,760px); text-align:center; }
+          .eyebrow { letter-spacing:.2em; font-size:11px; font-weight:800; color:#64748b; }
+          h1 { font-size:clamp(3.5rem,11vw,6.5rem); letter-spacing:-.1em; line-height:1; margin:16px 0 10px; }
+          h1 span { color:#e84c3d; }
+          .subtitle { color:#475569; margin:0 0 36px; }
+          .game-frame { background:#fff; border:3px solid #172033; border-radius:15px; box-shadow:10px 10px 0 #cbd5e1; overflow:hidden; margin:0 auto; width:min(100%,606px); }
+          canvas { display:block; width:100% !important; height:auto !important; touch-action:manipulation; }
+          .hint { font-size:13px; font-weight:700; margin:30px 0 10px; }
+          .footnote { font-size:12px; color:#64748b; }
+          @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
+          """)
+          Path("README.md").write_text("""# T-R-E-X 🦖
+          
+          A responsive browser dinosaur runner based on the original p5.play project. This independently maintained edition fixes score initialization, adds persistent personal bests, keyboard restart and touch controls, and improves the layout.
+          
+          ## Play
+          Open \`index.html\` in your browser (or serve with \`python -m http.server 8000\`).
+          - **Space / ↑**: jump
+          - **R / Space**: restart after a collision
+          - **Tap**: jump or restart on touch devices
+          
+          The best score is stored locally in the browser; no backend or account is needed.
+          
+          ## Development
+          The original JavaScript and sprite assets have been preserved. Run \`node --check sketch.js\` to syntax-check the updated game.
+          
+          ## Credits
+          Adapted with permission from [SakshamJain17/trex-running-game](https://github.com/SakshamJain17/trex-running-game). Independently maintained in Aadhar-Gupta-0/T-R-E-X.
+          """)
+          
+          PY
+          node --check sketch.js
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "Import and improve T-R-E-X runner" 
+          git push origin HEAD:main
