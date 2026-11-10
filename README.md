@@ -12,6 +12,3 @@ The best score is stored locally in the browser; no backend or account is needed
 
 ## Development
 The original JavaScript and sprite assets have been preserved. Run \`node --check sketch.js\` to syntax-check the updated game.
-
-## Credits
-Adapted with permission from [SakshamJain17/trex-running-game](https://github.com/SakshamJain17/trex-running-game). Independently maintained in Aadhar-Gupta-0/T-R-E-X.
