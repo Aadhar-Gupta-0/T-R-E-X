@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const game=require('./gameplay.js');
+assert.equal(game.gameSpeed(0),6);
+assert(game.gameSpeed(1000)<=13);
+assert(game.gameSpeed(-4)>=6);
+assert(game.obstacleInterval(0)>=42);
+assert(game.obstacleInterval(99999)>=42);
+assert.equal(game.savedBest('72'),72);
+assert.equal(game.savedBest('Infinity'),0);
+assert.equal(game.savedBest('-1'),0);
+assert.equal(game.safeScore(NaN),0);
+console.log('Dino difficulty and score regression tests passed');
