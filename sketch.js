@@ -37,7 +37,7 @@ function setup() {
   var canvas = createCanvas(600, 200);
   canvas.parent("game");
   score = 0;
-  try { bestScore = Number(localStorage.getItem("trex-best-score") || 0); } catch (error) { bestScore = 0; }
+  try { bestScore = DinoGameplay.savedBest(localStorage.getItem("trex-best-score")); } catch (error) { bestScore = 0; }
   
   trex = createSprite(50,180,20,50);
   trex.addAnimation("running", trex_running);
@@ -78,7 +78,7 @@ function draw() {
   if(gameState===PLAY){
   
   if (frameCount % 3 === 0) score += 1;
-  ground.velocityX= -(6+3*score/100)
+  ground.velocityX= -DinoGameplay.gameSpeed(score)
   
   if((keyDown("space") || keyDown("up")) && trex.y >= 159) {
     trex.velocityY = -12;
@@ -173,9 +173,9 @@ function spawnClouds() {
 }
 
 function spawnObstacles() {
-  if(frameCount % 60 === 0) {
+  if(frameCount % DinoGameplay.obstacleInterval(score) === 0) {
     var obstacle = createSprite(600,165,10,40);
-    obstacle.velocityX = -(6+score/100);
+    obstacle.velocityX = -DinoGameplay.gameSpeed(score);
     
     //generate random obstacles
     var rand = Math.round(random(1,6));
